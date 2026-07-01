@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>BeatMe - Texas Hold'em Coach</title>
+  <link rel="stylesheet" href="/static/style.css" />
+  <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+</head>
+<body>
+  <main class="page">
+    <header class="hero">
+      <div>
+        <p class="eyebrow">BeatMe</p>
+        <h1>Heads-up Texas Hold'em Coach</h1>
+        <p class="sub">6-max style table with configurable seats and smarter bots.</p>
+      </div>
+      <div id="hero-stats" class="stacks">
+        <div class="stack-card">
+          <span>Your stack</span>
+          <strong>{{ state.players[0].stack }}</strong>
+        </div>
+        <div class="stack-card">
+          <span>Players</span>
+          <strong>{{ state.table_size }}</strong>
+        </div>
+      </div>
+    </header>
+
+    <section id="table" class="table" hx-target="this" hx-swap="innerHTML">
+      {% include "partials/table.html" %}
+    </section>
+  </main>
+</body>
+</html>
