@@ -1,0 +1,246 @@
+<div id="hero-stats" class="stacks" hx-swap-oob="true">
+  <div class="stack-card">
+    <span>Your stack</span>
+    <strong>{{ state.players[0].stack }}</strong>
+  </div>
+  <div class="stack-card">
+    <span>Players</span>
+    <strong>{{ state.table_size }}</strong>
+  </div>
+</div>
+
+<div class="table-circle">
+  <div class="board-center">
+    <div class="community">
+      <p>Board</p>
+      <div class="cards">
+        {% if state.board|length == 0 %}
+          <span class="card empty">--</span>
+          <span class="card empty">--</span>
+          <span class="card empty">--</span>
+          <span class="card empty">--</span>
+          <span class="card empty">--</span>
+        {% else %}
+          {% for card in state.board %}
+            <span class="card">{{ card }}</span>
+          {% endfor %}
+          {% for _ in range(5 - (state.board|length)) %}
+            <span class="card empty">--</span>
+          {% endfor %}
+        {% endif %}
+      </div>
+      <p class="pot">Pot: {{ state.pot }}</p>
+      <p class="street">Street: {{ state.street }}</p>
+      <p class="street">To call: {{ state.to_call }}</p>
+      <p class="street">Current bet: {{ state.current_bet }}</p>
+    </div>
+  </div>
+
+  {% for p in state.players %}
+    <div class="seat seat-{{ loop.index0 }} {% if loop.index0 == state.acting_index %}acting{% endif %}">
+      <div class="seat-name">{{ p.name }} ({{ state.positions[loop.index0] }})</div>
+      <div class="seat-stack">Stack: {{ p.stack }}</div>
+      <div class="cards">
+        {% if p.is_user or state.hand_over or state.street == "showdown" %}
+          {% for card in p.cards %}
+            <span class="card">{{ card }}</span>
+          {% endfor %}
+        {% else %}
+          <span class="card back">??</span>
+          <span class="card back">??</span>
+        {% endif %}
+      </div>
+      <div class="seat-status">{{ p.status }}</div>
+    </div>
+  {% endfor %}
+</div>
+
+<div class="action-panel">
+
+  <div class="message">{{ state.message }}</div>
+  <div class="action-row">
+    {% if state.hand_over %}
+      <form hx-post="/new-hand">
+        <button class="primary" type="submit">New hand</button>
+      </form>
+      <form hx-post="/reset">
+        <button class="ghost" type="submit">Reset match</button>
+      </form>
+    {% else %}
+      {% if state.acting_index == 0 and state.players[0].status == "active" %}
+        <form hx-post="/action">
+          <input type="hidden" name="action" value="fold" />
+          <button class="ghost" type="submit">Fold</button>
+        </form>
+
+        {% if state.to_call > 0 %}
+          <form hx-post="/action">
+            <input type="hidden" name="action" value="call" />
+            <button class="primary" type="submit">Call {{ state.to_call }}</button>
+          </form>
+          <div class="bet-box">
+            <div class="bet-label">Raise to</div>
+            {% set min_raise_to = state.current_bet + state.last_raise %}
+            {% set half_pot = (state.pot // 2) if (state.pot // 2) > state.big_blind else state.big_blind %}
+            {% set pot_size = state.pot if state.pot > state.big_blind else state.big_blind %}
+            <div class="bet-actions">
+              <form hx-post="/action">
+                <input type="hidden" name="action" value="raise" />
+                <input type="hidden" name="amount" value="{{ min_raise_to }}" />
+                <button class="ghost" type="submit">Min {{ min_raise_to }}</button>
+              </form>
+              <form hx-post="/action">
+                <input type="hidden" name="action" value="raise" />
+                <input type="hidden" name="amount" value="{{ half_pot }}" />
+                <button class="ghost" type="submit">1/2 Pot</button>
+              </form>
+              <form hx-post="/action">
+                <input type="hidden" name="action" value="raise" />
+                <input type="hidden" name="amount" value="{{ pot_size }}" />
+                <button class="ghost" type="submit">Pot</button>
+              </form>
+            </div>
+            <form hx-post="/action" class="bet-form">
+              <input type="hidden" name="action" value="raise" />
+              <input type="number" min="1" name="amount" placeholder="Custom" class="bet-input" />
+              <button class="primary" type="submit">Raise</button>
+            </form>
+          </div>
+        {% else %}
+          <form hx-post="/action">
+            <input type="hidden" name="action" value="check" />
+            <button class="ghost" type="submit">Check</button>
+          </form>
+          <div class="bet-box">
+            <div class="bet-label">Bet</div>
+            {% set half_pot = (state.pot // 2) if (state.pot // 2) > state.big_blind else state.big_blind %}
+            {% set pot_size = state.pot if state.pot > state.big_blind else state.big_blind %}
+            <div class="bet-actions">
+              <form hx-post="/action">
+                <input type="hidden" name="action" value="bet" />
+                <input type="hidden" name="amount" value="{{ half_pot }}" />
+                <button class="ghost" type="submit">1/2 Pot</button>
+              </form>
+              <form hx-post="/action">
+                <input type="hidden" name="action" value="bet" />
+                <input type="hidden" name="amount" value="{{ pot_size }}" />
+                <button class="ghost" type="submit">Pot</button>
+              </form>
+            </div>
+            <form hx-post="/action" class="bet-form">
+              <input type="hidden" name="action" value="bet" />
+              <input type="number" min="1" name="amount" placeholder="Custom" class="bet-input" />
+              <button class="primary" type="submit">Bet</button>
+            </form>
+          </div>
+        {% endif %}
+      {% else %}
+        <div class="waiting">
+  {% if state.players[0].status == "folded" %}
+    You folded. Waiting for showdown...
+  {% elif state.players[0].status == "allin" %}
+    You are all-in. Waiting for showdown...
+  {% else %}
+    Waiting for other players...
+  {% endif %}
+</div>
+      {% endif %}
+    {% endif %}
+  </div>
+</div>
+
+<section class="history">
+  <div class="history-head">
+    <h2>Action log</h2>
+    <p>Per-street actions, newest hand.</p>
+  </div>
+  <div class="log-list">
+    {% if action_log and action_log|length > 0 %}
+      {% for block in action_log %}
+        <div class="log-block">
+          <div class="log-street">{{ block.street }}</div>
+          <div class="log-entries">
+            {% for entry in block.entries %}
+              <div class="log-entry">{{ entry }}</div>
+            {% endfor %}
+          </div>
+        </div>
+      {% endfor %}
+    {% else %}
+      <div class="log-empty">No actions yet.</div>
+    {% endif %}
+  </div>
+</section>
+
+<section class="history">
+  <div class="history-head">
+    <h2>Last hand summary</h2>
+    <p>Key outcome and coach note.</p>
+  </div>
+  {% if last_hand %}
+    <div class="summary-card">
+      <div class="summary-row">
+        <span>Result: {{ last_hand.result }}</span>
+        <span>Winner: {{ last_hand.winner }}</span>
+      </div>
+      <div class="summary-row">
+        <span>Board: {% for c in last_hand.board %}<span class="card">{{ c }}</span>{% endfor %}</span>
+      </div>
+      <div class="summary-row">
+        <span>You: {% for c in last_hand.user_cards %}<span class="card">{{ c }}</span>{% endfor %} {{ last_hand.user_hand_name or '' }}</span>
+      </div>
+      <div class="summary-note">{{ last_hand.notes or '' }}</div>
+    </div>
+  {% else %}
+    <div class="log-empty">No completed hands yet.</div>
+  {% endif %}
+</section>
+
+<section class="history">
+  <div class="history-head">
+    <h2>Settings</h2>
+    <p>Apply changes immediately by saving. This will reset the match.</p>
+  </div>
+  <form class="settings-form" hx-post="/settings">
+    <label>
+      <span>Players (2-9)</span>
+      <input type="number" name="table_size" min="2" max="9" value="{{ settings.table_size }}" />
+    </label>
+    <label>
+      <span>Starting stack</span>
+      <input type="number" name="starting_stack" min="100" value="{{ settings.starting_stack }}" />
+    </label>
+    <label>
+      <span>Small blind</span>
+      <input type="number" name="small_blind" min="1" value="{{ settings.small_blind }}" />
+    </label>
+    <label>
+      <span>Big blind</span>
+      <input type="number" name="big_blind" min="2" value="{{ settings.big_blind }}" />
+    </label>
+    <label class="checkbox">
+      <input type="checkbox" name="auto_runout" {% if settings.auto_runout %}checked{% endif %} />
+      <span>Auto runout on all-in</span>
+    </label>
+    <button class="primary" type="submit">Save settings</button>
+  </form>
+</section>
+
+<section class="history">
+  <div class="history-head">
+    <h2>Recent hands</h2>
+    <p>Coaching notes are attached to each finished hand.</p>
+  </div>
+  <div class="history-list">
+    {% for hand in hands %}
+      <div class="history-item">
+        <div class="history-row">
+          <span>Hand #{{ hand.id }}</span>
+          <span>{{ hand.result or "In progress" }}</span>
+          <span>Winner: {{ hand.winner or "--" }}</span>
+        </div>
+        <p class="history-note">{{ hand.notes or "" }}</p>
+      </div>
+    {% endfor %}
+  </div>
+</section>
